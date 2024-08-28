@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownMerge - Prévisualisation Markdown</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/12.3.2/markdown-it.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>MarkdownMerge</h1>
+        <p>Prévisualisation Markdown en temps réel</p>
+    </header>
+    <main>
+        <div class="content-wrapper">
+            <textarea id="editor" placeholder="Saisissez votre Markdown ici..."></textarea>
+            <div id="preview"></div>
+        </div>
+        <div class="options">
+            <div class="option">
+                <label for="separator">Séparateur :</label>
+                <input type="text" id="separator" value="---" />
+            </div>
+            <div class="option">
+                <label for="theme">Thème :</label>
+                <select id="theme">
+                    <option value="light">Clair</option>
+                    <option value="dark">Sombre</option>
+                </select>
+            </div>
+            <button id="toggle-preview">Afficher/Masquer la prévisualisation</button>
+        </div>
+    </main>
+    <footer>
+        <p>MarkdownMerge - Votre solution complète pour la gestion des documents Markdown.</p>
+        <p>
+            <a href="https://markdownmerge.io/about" style="color: #3498db; text-decoration: none;">À propos</a> | 
+            <a href="https://markdownmerge.io/privacy" style="color: #3498db; text-decoration: none;">Politique de confidentialité</a> | 
+            <a href="https://markdownmerge.io/terms" style="color: #3498db; text-decoration: none;">Conditions d'utilisation</a>
+        </p>
+    </footer>
+    <script>
+        const editor = document.getElementById('editor');
+        const preview = document.getElementById('preview');
+        const separator = document.getElementById('separator');
+        const theme = document.getElementById('theme');
+        const togglePreviewButton = document.getElementById('toggle-preview');
+
+        const md = window.markdownit();
+
+        function updatePreview() {
+            const markdown = editor.value;
+            const html = md.render(markdown);
+            preview.innerHTML = html;
+        }
+
+        editor.addEventListener('input', updatePreview);
+
+        separator.addEventListener('input', () => {
+            const sep = separator.value;
+            editor.value = editor.value.replace(/\n---\n/g, `\n${sep}\n`);
+            updatePreview();
+        });
+
+        theme.addEventListener('change', () => {
+            document.body.classList.toggle('dark-theme', theme.value === 'dark');
+        });
+
+        togglePreviewButton.addEventListener('click', () => {
+            preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+            editor.style.flex = preview.style.display === 'none' ? '1' : '0 0 50%';
+        });
+
+        // Initialisation de la prévisualisation
+        updatePreview();
+
+        // Exemple de contenu Markdown
+        editor.value = `# Bienvenue sur MarkdownMerge
+
+Ceci est un exemple de document Markdown.
+
+## Fonctionnalités
+
+- Prévisualisation en temps réel
+- Personnalisation des séparateurs
+- Thèmes clair et sombre
+
+---
+
+Essayez de modifier ce texte pour voir la prévisualisation se mettre à jour !`;
+        updatePreview();
+    </script>
+</body>
+</html>

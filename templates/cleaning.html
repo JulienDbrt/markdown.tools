@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownMerge - Nettoyage et formatage Markdown</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>MarkdownMerge</h1>
+        <p>Nettoyage et formatage Markdown</p>
+    </header>
+    <main>
+        <div id="dropzone">
+            <i class="fas fa-file-upload" style="font-size: 3em; color: #3498db;"></i>
+            <p>Glissez et déposez votre fichier Markdown ici, ou cliquez pour sélectionner</p>
+            <input type="file" id="file-input" accept=".md" style="display: none;">
+        </div>
+        <div class="content-wrapper">
+            <textarea id="editor" class="editor" placeholder="Votre contenu Markdown apparaîtra ici..."></textarea>
+            <div class="options">
+                <h3>Options de nettoyage</h3>
+                <div class="option">
+                    <label class="toggle-button">
+                        <input type="checkbox" id="trim-whitespace">
+                        <span class="slider"></span>
+                    </label>
+                    <span>Supprimer les espaces en début/fin de ligne</span>
+                </div>
+                <div class="option">
+                    <label class="toggle-button">
+                        <input type="checkbox" id="remove-empty-lines">
+                        <span class="slider"></span>
+                    </label>
+                    <span>Supprimer les lignes vides consécutives</span>
+                </div>
+                <div class="option">
+                    <label class="toggle-button">
+                        <input type="checkbox" id="standardize-headings">
+                        <span class="slider"></span>
+                    </label>
+                    <span>Standardiser les titres (ex: ### au lieu de ###)</span>
+                </div>
+                <div class="option">
+                    <label class="toggle-button">
+                        <input type="checkbox" id="fix-list-indentation">
+                        <span class="slider"></span>
+                    </label>
+                    <span>Corriger l'indentation des listes</span>
+                </div>
+                <div class="option">
+                    <label class="toggle-button">
+                        <input type="checkbox" id="fix-line-breaks">
+                        <span class="slider"></span>
+                    </label>
+                    <span>Corriger les sauts de ligne</span>
+                </div>
+                <div class="heading-level">
+                    <button id="decrease-heading">-</button>
+                    <span>Niveau des titres</span>
+                    <button id="increase-heading">+</button>
+                </div>
+            </div>
+        </div>
+        <div class="buttons">
+            <button id="clean-button">Nettoyer et formater</button>
+            <button id="download-button">Télécharger le résultat</button>
+        </div>
+    </main>
+    <footer>
+        <p>MarkdownMerge - Votre solution complète pour la gestion des documents Markdown.</p>
+        <p>
+            <a href="https://markdownmerge.io/about" style="color: #3498db; text-decoration: none;">À propos</a> | 
+            <a href="https://markdownmerge.io/privacy" style="color: #3498db; text-decoration: none;">Politique de confidentialité</a> | 
+            <a href="https://markdownmerge.io/terms" style="color: #3498db; text-decoration: none;">Conditions d'utilisation</a>
+        </p>
+    </footer>
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const editor = document.getElementById('editor');
+        const cleanButton = document.getElementById('clean-button');
+        const downloadButton = document.getElementById('download-button');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                loadFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                loadFile(e.target.files[0]);
+            }
+        });
+
+        function loadFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                editor.value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        cleanButton.addEventListener('click', () => {
+            let content = editor.value;
+
+            if (document.getElementById('trim-whitespace').checked) {
+                content = content.split('\n').map(line => line.trim()).join('\n');
+            }
+
+            if (document.getElementById('remove-empty-lines').checked) {
+                content = content.replace(/\n{3,}/g, '\n\n');
+            }
+
+            if (document.getElementById('standardize-headings').checked) {
+                content = content.replace(/^#+\s*/gm, match => match.trim() + ' ');
+            }
+
+            if (document.getElementById('fix-list-indentation').checked) {
+                content = content.replace(/^(\s*[-*+])\s+/gm, '$1 ');
+            }
+
+            if (document.getElementById('fix-line-breaks').checked) {
+                content = content.replace(/([^\n])\n(?!\n)/g, '$1 ');
+            }
+
+            editor.value = content;
+        });
+
+        function changeHeadingLevel(change) {
+            let content = editor.value;
+            if (change > 0) {
+                // Augmenter le niveau (ajouter un #)
+                content = content.replace(/^(#+)\s/gm, (match, p1) => '#' + p1 + ' ');
+            } else {
+                // Diminuer le niveau (enlever un #)
+                content = content.replace(/^(#+)\s/gm, (match, p1) => {
+                    return p1.length > 1 ? p1.slice(1) + ' ' : match;
+                });
+            }
+            editor.value = content;
+        }
+
+        document.getElementById('increase-heading').addEventListener('click', () => changeHeadingLevel(1));
+        document.getElementById('decrease-heading').addEventListener('click', () => changeHeadingLevel(-1));
+
+        downloadButton.addEventListener('click', () => {
+            const blob = new Blob([editor.value], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'cleaned_document.md';
+            a.click();
+        });
+    </script>
+</body>
+</html>

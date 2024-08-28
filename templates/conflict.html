@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownMerge - Gestion des conflits style GitHub</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/diff-match-patch/20121119/diff_match_patch.js"></script>
+</head>
+<body>
+    <header>
+        <h1>MarkdownMerge</h1>
+        <p>Gestion des conflits style GitHub</p>
+    </header>
+    <main>
+        <div class="file-inputs">
+            <div class="file-input">
+                <div id="dropzone1" class="dropzone">
+                    <i class="fas fa-file-upload" style="font-size: 2em; color: #3498db;"></i>
+                    <p>Glissez et déposez le fichier original ici, ou cliquez pour sélectionner</p>
+                    <input type="file" id="file1" accept=".md" style="display: none;">
+                </div>
+            </div>
+            <div class="file-input">
+                <div id="dropzone2" class="dropzone">
+                    <i class="fas fa-file-upload" style="font-size: 2em; color: #3498db;"></i>
+                    <p>Glissez et déposez le fichier modifié ici, ou cliquez pour sélectionner</p>
+                    <input type="file" id="file2" accept=".md" style="display: none;">
+                </div>
+            </div>
+        </div>
+        <div id="conflict-resolver" class="conflict-resolver" style="display: none;"></div>
+        <div class="buttons">
+            <button id="compare-button">Comparer les fichiers</button>
+            <button id="download-button">Télécharger le résultat</button>
+        </div>
+    </main>
+    <footer>
+        <p>MarkdownMerge - Votre solution complète pour la gestion des documents Markdown.</p>
+        <p>
+            <a href="https://markdownmerge.io/about" style="color: #3498db; text-decoration: none;">À propos</a> | 
+            <a href="https://markdownmerge.io/privacy" style="color: #3498db; text-decoration: none;">Politique de confidentialité</a> | 
+            <a href="https://markdownmerge.io/terms" style="color: #3498db; text-decoration: none;">Conditions d'utilisation</a>
+        </p>
+    </footer>
+    <script>
+        const file1Input = document.getElementById('file1');
+        const file2Input = document.getElementById('file2');
+        const dropzone1 = document.getElementById('dropzone1');
+        const dropzone2 = document.getElementById('dropzone2');
+        const conflictResolver = document.getElementById('conflict-resolver');
+        const compareButton = document.getElementById('compare-button');
+        const downloadButton = document.getElementById('download-button');
+
+        let originalContent = '';
+        let modifiedContent = '';
+
+        function setupDropzone(dropzone, fileInput, contentSetter) {
+            dropzone.addEventListener('click', () => fileInput.click());
+            
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('dragover');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    loadFile(e.dataTransfer.files[0], contentSetter);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    loadFile(e.target.files[0], contentSetter);
+                }
+            });
+        }
+
+        setupDropzone(dropzone1, file1Input, (content) => originalContent = content);
+        setupDropzone(dropzone2, file2Input, (content) => modifiedContent = content);
+
+        function loadFile(file, contentSetter) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                contentSetter(e.target.result);
+            };
+            reader.readAsText(file);
+        }
+
+        compareButton.addEventListener('click', () => {
+            if (!originalContent || !modifiedContent) {
+                alert('Veuillez charger les deux fichiers avant de comparer.');
+                return;
+            }
+
+            const dmp = new diff_match_patch();
+            const diffs = dmp.diff_main(originalContent, modifiedContent);
+            dmp.diff_cleanupSemantic(diffs);
+
+            conflictResolver.innerHTML = '';
+            let conflictCount = 0;
+
+            diffs.forEach((diff, index) => {
+                if (diff[0] !== 0) {
+                    conflictCount++;
+                    const conflictElement = document.createElement('div');
+                    conflictElement.className = 'conflict';
+                    conflictElement.innerHTML = `
+                        <div class="conflict-header">
+                            <strong>Conflit ${conflictCount}</strong>
+                        </div>
+                        <div class="conflict-content">
+                            <div class="conflict-side conflict-original"></div>
+                            <div class="conflict-side conflict-modified"></div>
+                        </div>
+                        <div class="conflict-actions">
+                            <button class="use-original">Utiliser l'original</button>
+                            <button class="use-modified">Utiliser la modification</button>
+                        </div>
+                    `;
+
+                    const originalSide = conflictElement.querySelector('.conflict-original');
+                    const modifiedSide = conflictElement.querySelector('.conflict-modified');
+
+                    if (diff[0] === -1) {
+                        originalSide.innerHTML = `<span class="diff-removed">${diff[1]}</span>`;
+                    } else {
+                        modifiedSide.innerHTML = `<span class="diff-added">${diff[1]}</span>`;
+                    }
+
+                    if (index > 0 && diffs[index - 1][0] === 0) {
+                        const context = diffs[index - 1][1].split('\n').slice(-3).join('\n');
+                        originalSide.innerHTML = context + originalSide.innerHTML;
+                        modifiedSide.innerHTML = context + modifiedSide.innerHTML;
+                    }
+
+                    if (index < diffs.length - 1 && diffs[index + 1][0] === 0) {
+                        const context = diffs[index + 1][1].split('\n').slice(0, 3).join('\n');
+                        originalSide.innerHTML += context;
+                        modifiedSide.innerHTML += context;
+                    }
+
+                    conflictElement.querySelector('.use-original').addEventListener('click', () => {
+                        conflictElement.remove();
+                        checkConflictsResolved();
+                    });
+
+                    conflictElement.querySelector('.use-modified').addEventListener('click', () => {
+                        originalContent = originalContent.replace(diff[1], diff[0] === -1 ? '' : diff[1]);
+                        conflictElement.remove();
+                        checkConflictsResolved();
+                    });
+
+                    conflictResolver.appendChild(conflictElement);
+                }
+            });
+
+            conflictResolver.style.display = 'block';
+        });
+
+        function checkConflictsResolved() {
+            if (conflictResolver.children.length === 0) {
+                alert('Tous les conflits ont été résolus !');
+                conflictResolver.style.display = 'none';
+            }
+        }
+
+        downloadButton.addEventListener('click', () => {
+            if (conflictResolver.children.length > 0) {
+                alert('Veuillez résoudre tous les conflits avant de télécharger.');
+                return;
+            }
+            const blob = new Blob([originalContent], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'resolved_document.md';
+            a.click();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownMerge - Réorganisation des fichiers</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>MarkdownMerge</h1>
+        <p>Réorganisation des fichiers Markdown</p>
+    </header>
+    <main>
+        <div id="dropzone">
+            <i class="fas fa-file-upload" style="font-size: 3em; color: #3498db;"></i>
+            <p>Glissez et déposez vos fichiers Markdown ici, ou cliquez pour sélectionner des fichiers</p>
+        </div>
+        <div class="content-wrapper">
+            <div id="file-tree"></div>
+            <div id="file-content"></div>
+        </div>
+        <div class="buttons">
+            <button id="create-toc">Créer une table des matières</button>
+            <button id="download-files">Télécharger les fichiers</button>
+            <button id="download-zip">Télécharger l'archive ZIP</button>
+        </div>
+    </main>
+    <footer>
+        <p>MarkdownMerge - Votre solution complète pour la gestion des documents Markdown.</p>
+        <p>
+            <a href="https://markdownmerge.io/about" style="color: #3498db; text-decoration: none;">À propos</a> | 
+            <a href="https://markdownmerge.io/privacy" style="color: #3498db; text-decoration: none;">Politique de confidentialité</a> | 
+            <a href="https://markdownmerge.io/terms" style="color: #3498db; text-decoration: none;">Conditions d'utilisation</a>
+        </p>
+    </footer>
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileTree = document.getElementById('file-tree');
+        const fileContent = document.getElementById('file-content');
+        const createTocButton = document.getElementById('create-toc');
+        const downloadFilesButton = document.getElementById('download-files');
+        const downloadZipButton = document.getElementById('download-zip');
+
+        let files = [];
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            const droppedFiles = Array.from(e.dataTransfer.files).filter(file => file.name.endsWith('.md'));
+            addFiles(droppedFiles);
+        });
+
+        dropzone.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = '.md';
+            input.onchange = (e) => {
+                const selectedFiles = Array.from(e.target.files);
+                addFiles(selectedFiles);
+            };
+            input.click();
+        });
+
+        function addFiles(newFiles) {
+            files = [...files, ...newFiles];
+            updateFileTree();
+        }
+
+        function updateFileTree() {
+            fileTree.innerHTML = '';
+            const ul = document.createElement('ul');
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="file"><i class="far fa-file"></i> ${file.name}</span>`;
+                li.querySelector('.file').addEventListener('click', () => showFileContent(file));
+                ul.appendChild(li);
+            });
+            fileTree.appendChild(ul);
+        }
+
+        function showFileContent(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                fileContent.textContent = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        createTocButton.addEventListener('click', () => {
+            const toc = files.map(file => `- [${file.name}](${file.name})`).join('\n');
+            const tocFile = new File([toc], 'table_of_contents.md', { type: 'text/markdown' });
+            files.unshift(tocFile);
+            updateFileTree();
+        });
+
+        downloadFilesButton.addEventListener('click', () => {
+            files.forEach(file => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(file);
+                a.download = file.name;
+                a.click();
+            });
+        });
+
+        downloadZipButton.addEventListener('click', async () => {
+            const zip = new JSZip();
+            files.forEach(file => zip.file(file.name, file));
+            const content = await zip.generateAsync({ type: 'blob' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(content);
+            a.download = 'markdown_files.zip';
+            a.click();
+        });
+
+        // Ajoutez ici la logique pour le glisser-déposer dans l'arborescence
+        // Cela nécessiterait une bibliothèque supplémentaire ou une implémentation plus complexe
+    </script>
+</body>
+</html>

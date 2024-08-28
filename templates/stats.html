@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownMerge - Analyse et Statistiques Markdown</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <h1>MarkdownMerge</h1>
+        <p>Analyse et Statistiques Markdown</p>
+    </header>
+    <main>
+        <div id="dropzone">
+            <i class="fas fa-file-upload" style="font-size: 3em; color: #3498db;"></i>
+            <p>Glissez et déposez votre fichier Markdown ici, ou cliquez pour sélectionner</p>
+            <input type="file" id="file-input" accept=".md" style="display: none;">
+        </div>
+        <div class="content-wrapper">
+            <textarea id="editor" class="editor" placeholder="Votre contenu Markdown apparaîtra ici..."></textarea>
+            <div class="stats" id="stats">
+                <h2>Statistiques</h2>
+                <p>Chargez un fichier Markdown pour voir les statistiques.</p>
+            </div>
+        </div>
+        <button id="analyze-button">Analyser</button>
+    </main>
+    <footer>
+        <p>MarkdownMerge - Votre solution complète pour la gestion des documents Markdown.</p>
+        <p>
+            <a href="https://markdownmerge.io/about" style="color: #3498db; text-decoration: none;">À propos</a> | 
+            <a href="https://markdownmerge.io/privacy" style="color: #3498db; text-decoration: none;">Politique de confidentialité</a> | 
+            <a href="https://markdownmerge.io/terms" style="color: #3498db; text-decoration: none;">Conditions d'utilisation</a>
+        </p>
+    </footer>
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const editor = document.getElementById('editor');
+        const stats = document.getElementById('stats');
+        const analyzeButton = document.getElementById('analyze-button');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                loadFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                loadFile(e.target.files[0]);
+            }
+        });
+
+        function loadFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                editor.value = e.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        analyzeButton.addEventListener('click', analyzeMarkdown);
+
+        function analyzeMarkdown() {
+            const content = editor.value;
+            const charCount = content.length;
+            const wordCount = content.trim().split(/\s+/).length;
+            const headingCount = (content.match(/^#{1,6}\s/gm) || []).length;
+            const linkCount = (content.match(/\[([^\[]+)\](\(.*\))/gm) || []).length;
+            const imageCount = (content.match(/!\[([^\[]+)\](\(.*\))/gm) || []).length;
+            const codeBlockCount = (content.match(/```[\s\S]*?```/gm) || []).length;
+            const externalLinkCount = (content.match(/\[([^\[]+)\]\((https?:\/\/.*)\)/gm) || []).length;
+            
+            const words = content.toLowerCase().match(/\b[\w']+\b/g);
+            const wordFrequency = {};
+            words.forEach(word => {
+                wordFrequency[word] = (wordFrequency[word] || 0) + 1;
+            });
+            
+            const sortedWords = Object.entries(wordFrequency)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            
+            const readingTimeMinutes = Math.ceil(wordCount / 200);
+            
+            let statsHtml = `
+                <h2>Statistiques</h2>
+                <p>Nombre de caractères : ${charCount}</p>
+                <p>Nombre de mots : ${wordCount}</p>
+                <p>Nombre de titres : ${headingCount}</p>
+                <p>Nombre de liens : ${linkCount}</p>
+                <p>Nombre d'images : ${imageCount}</p>
+                <p>Nombre de blocs de code : ${codeBlockCount}</p>
+                <p>Nombre de liens externes : ${externalLinkCount}</p>
+                <p>Temps de lecture estimé : ${readingTimeMinutes} minute${readingTimeMinutes > 1 ? 's' : ''}</p>
+                <h3>Top 10 des mots les plus fréquents :</h3>
+                <ol>
+                    ${sortedWords.map(([word, count]) => `<li>${word}: ${count}</li>`).join('')}
+                </ol>
+                <h3>Loi de Zipf</h3>
+                <canvas id="zipf-chart"></canvas>
+            `;
+            
+            stats.innerHTML = statsHtml;
+            
+            const ctx = document.getElementById('zipf-chart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedWords.map((_, index) => index + 1),
+                    datasets: [{
+                        label: 'Fréquence',
+                        data: sortedWords.map(([_, count]) => count),
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Rang du mot'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Fréquence'
+                            },
+                            type: 'logarithmic'
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkdownMerge - Fusion de fichiers Markdown</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/12.3.2/markdown-it.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>MarkdownMerge</h1>
+        <p>Fusion de fichiers Markdown</p>
+    </header>
+    <main>
+        <div id="dropzone">
+            <i class="fas fa-file-upload" style="font-size: 3em; color: #3498db;"></i>
+            <p>Glissez et déposez vos fichiers Markdown ici, ou cliquez pour sélectionner des fichiers</p>
+        </div>
+        <div id="file-list"></div>
+        <button id="merge-button" disabled>Fusionner les fichiers Markdown</button>
+        <div class="content-wrapper">
+            <textarea id="editor" placeholder="Le contenu fusionné apparaîtra ici..."></textarea>
+            <div id="preview"></div>
+        </div>
+        <button id="toggle-preview">Afficher/Masquer la prévisualisation</button>
+    </main>
+    <footer>
+        <p>MarkdownMerge - Votre solution complète pour la gestion des documents Markdown.</p>
+        <p>
+            <a href="https://markdownmerge.io/about" style="color: #3498db; text-decoration: none;">À propos</a> | 
+            <a href="https://markdownmerge.io/privacy" style="color: #3498db; text-decoration: none;">Politique de confidentialité</a> | 
+            <a href="https://markdownmerge.io/terms" style="color: #3498db; text-decoration: none;">Conditions d'utilisation</a>
+        </p>
+    </footer>
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileList = document.getElementById('file-list');
+        const mergeButton = document.getElementById('merge-button');
+        const editor = document.getElementById('editor');
+        const preview = document.getElementById('preview');
+        const togglePreviewButton = document.getElementById('toggle-preview');
+        let files = [];
+
+        const md = window.markdownit();
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            const droppedFiles = Array.from(e.dataTransfer.files).filter(file => file.name.endsWith('.md'));
+            addFiles(droppedFiles);
+        });
+
+        dropzone.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = '.md';
+            input.onchange = (e) => {
+                const selectedFiles = Array.from(e.target.files);
+                addFiles(selectedFiles);
+            };
+            input.click();
+        });
+
+        function addFiles(newFiles) {
+            files = [...files, ...newFiles];
+            updateFileList();
+            updateMergeButton();
+        }
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            files.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>${file.name}</span>
+                    <span class="remove-file" data-index="${index}">✖</span>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        fileList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-file')) {
+                const index = parseInt(e.target.getAttribute('data-index'));
+                files.splice(index, 1);
+                updateFileList();
+                updateMergeButton();
+            }
+        });
+
+        function updateMergeButton() {
+            mergeButton.disabled = files.length < 2;
+        }
+
+        mergeButton.addEventListener('click', async () => {
+            const mergedContent = await Promise.all(files.map(file => 
+                new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsText(file);
+                })
+            ));
+            const result = mergedContent.join('\n\n---\n\n');
+            editor.value = result;
+            updatePreview();
+        });
+
+        editor.addEventListener('input', updatePreview);
+
+        function updatePreview() {
+            const markdown = editor.value;
+            const html = md.render(markdown);
+            preview.innerHTML = html;
+        }
+
+        togglePreviewButton.addEventListener('click', () => {
+            preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Initialisation de la prévisualisation
+        updatePreview();
+    </script>
+</body>
+</html>
